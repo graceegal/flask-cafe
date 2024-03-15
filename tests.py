@@ -470,53 +470,92 @@ class NavBarTestCase(TestCase):
             self.assertIn("Sign Up", str(resp.data))
             self.assertIn("Log In", str(resp.data))
 
-    #  FIXME: not working due to request context issue with flask login
-    # def test_logged_in_navbar(self):
-    #     user=User.query.get(self.user_id)
-    #     with app.test_client(user=user) as c:
-    #         # login_for_test(c, self.user_id)
-    #         # login_user(User.query.get(self.user_id))
-    #         resp = c.get(
-    #             "/",
-    #             follow_redirects=True,)
+    def test_logged_in_navbar(self):
+        with app.test_client() as c:
+            resp = c.post(
+                "/login",
+                data={"username": "test", "password": "secret"},
+                follow_redirects=True)
 
-    #         self.assertEqual(resp.status_code, 200)
-    #         self.assertIn(f"{user.get_full_name()}", str(resp.data))
-    #         self.assertIn("Log Out", str(resp.data))
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(f"{current_user.get_full_name()}", str(resp.data))
+            self.assertIn("Log Out", str(resp.data))
 
 
-# class ProfileViewsTestCase(TestCase):
-#     """Tests for views on user profiles."""
+class ProfileViewsTestCase(TestCase):
+    """Tests for views on user profiles."""
 
-#     def setUp(self):
-#         """Before each test, add sample user."""
+    def setUp(self):
+        """Before each test, add sample user."""
 
-#         User.query.delete()
+        User.query.delete()
 
-#         user = User.register(**TEST_USER_DATA)
-#         db.session.add(user)
+        user = User.register(**TEST_USER_DATA)
+        db.session.add(user)
 
-#         db.session.commit()
+        db.session.commit()
 
-#         self.user_id = user.id
+        self.user_id = user.id
 
-#     def tearDown(self):
-#         """After each test, remove all users."""
+    def tearDown(self):
+        """After each test, remove all users."""
 
-#         User.query.delete()
-#         db.session.commit()
+        User.query.delete()
+        db.session.commit()
 
-#     def test_anon_profile(self):
-#         self.fail("FIXME: write this test")
+    def test_anon_profile(self):
+        with app.test_client() as c:
+            breakpoint()
+            resp = c.get(
+                "/profile",
+                follow_redirects=True,)
 
-#     def test_logged_in_profile(self):
-#         self.fail("FIXME: write this test")
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("You are not logged in", str(resp.data))
 
-#     def test_anon_profile_edit(self):
-#         self.fail("FIXME: write this test")
 
-#     def test_logged_in_profile_edit(self):
-#         self.fail("FIXME: write this test")
+    def test_logged_in_profile(self):
+        with app.test_client() as c:
+            resp = c.post(
+                "/login",
+                data={"username": "test", "password": "secret"},
+                follow_redirects=True)
+
+            resp = c.get(
+                "/profile",
+                follow_redirects=True,)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(f"{current_user.get_full_name()}", str(resp.data))
+            self.assertIn(f"{current_user.username}", str(resp.data))
+            self.assertIn("Edit Your Profile", str(resp.data))
+
+
+    def test_anon_profile_edit(self):
+        with app.test_client() as c:
+            breakpoint()
+            resp = c.get(
+                "/profile/edit",
+                follow_redirects=True,)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("You are not logged in", str(resp.data))
+
+    def test_logged_in_profile_edit(self):
+        with app.test_client() as c:
+            resp = c.post(
+                "/login",
+                data={"username": "test", "password": "secret"},
+                follow_redirects=True)
+
+            resp = c.get(
+                "/profile/edit",
+                follow_redirects=True,)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Edit Profile", str(resp.data))
+            self.assertIn(f"{current_user.email}", str(resp.data))
+            self.assertIn("Update", str(resp.data))
 
 
 #######################################

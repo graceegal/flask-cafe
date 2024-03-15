@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 
 {% block title %} {{ current_user.get_full_name() }} {% endblock %}
@@ -26,6 +25,28 @@
 
   </div>
 
+</div>
+
+<div class="row justify-content-left">
+
+  <div style="display: block;">
+  <h3>Your Liked Cafes</h3>
+
+  {% if current_user.liked_cafes %}
+  <ul id="liked_cafes">
+
+    {% for cafe in current_user.liked_cafes %}
+    <li><a href="/cafes/{{ cafe.id }}">{{ cafe.name }}</a></li>
+    {% endfor %}
+
+  </ul>
+
+  {% else %}
+
+  <p>You have no liked cafes</p>
+
+  {% endif %}
+</div>
 </div>
 
 {% endblock %}

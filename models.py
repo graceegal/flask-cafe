@@ -152,6 +152,8 @@ class User(db.Model, UserMixin):
         nullable=False,
     )
 
+    liked_cafes= db.relationship('Cafe', secondary="likes", backref="liking_users")
+
     def __repr__(self):
         return f'<User id={self.id} username="{self.username}">'
 
@@ -195,6 +197,26 @@ class User(db.Model, UserMixin):
             return user
         else:
             return False
+
+
+class Like(db.Model):
+    """Join table between users and cafes (the join represents a like)."""
+
+    __tablename__ = 'likes'
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        primary_key=True,
+    )
+
+    cafe_id = db.Column(
+        db.Integer,
+        db.ForeignKey('cafes.id', ondelete='CASCADE'),
+        nullable=False,
+        primary_key=True,
+    )
 
 
 def connect_db(app):
