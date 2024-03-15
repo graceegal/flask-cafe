@@ -9,7 +9,11 @@
 
     <h1 class="mb-4">Welcome Back!</h1>
 
-    <!-- form goes here -->
+    <form method="POST" action="/login">
+      {{ g.csrf_form.hidden_tag() }}
+      {% include '_form.html' %}
+      <button type="">Log in</button>
+    </form>
 
   </div>
 </div>

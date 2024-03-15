@@ -6,6 +6,12 @@
 
 <h1 class="mb-4">Edit Profile</h1>
 
-<!-- form goes here -->
+<form method="POST" action="/profile/edit">
+
+  {% include '_form.html' %}
+
+  <button type="submit">Update</button>
+
+</form>
 
 {% endblock %}
