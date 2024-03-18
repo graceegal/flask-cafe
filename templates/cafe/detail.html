@@ -14,6 +14,18 @@
 
     <h1>{{ cafe.name }}</h1>
 
+    {% if current_user.is_authenticated %}
+    <form id="like-form" cafe-id="{{ cafe.id }}">
+      <button class="btn btn-primary" id="like-btn">
+        {% if cafe in current_user.liked_cafes %}
+        Liked
+        {% else %}
+        Like
+        {% endif %}
+      </button>
+    </form>
+    {% endif %}
+
     <p class="lead">{{ cafe.description }}</p>
 
     <p><a href="{{ cafe.url }}">{{ cafe.url }}</a></p>
@@ -23,13 +35,19 @@
       {{ cafe.get_city_state() }}<br>
     </p>
 
+    {% if current_user.admin %}
     <p>
       <a class="btn btn-outline-primary" href="/cafes/{{ cafe.id }}/edit">
         Edit Cafe
       </a>
     </p>
+    {% endif %}
+
+    <img style="height: 400px; width: 400px" src="/static/maps/{{ cafe.id }}.jpg">
 
   </div>
 
 </div>
+
+<script src="/static/js/likes.js"></script>
 {% endblock %}

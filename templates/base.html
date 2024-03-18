@@ -29,18 +29,18 @@
       <ul class="navbar-nav ml-auto">
         <li class="nav-item">
           {% if not current_user.is_authenticated %}
-            <a href="/signup" class="btn-sm btn btn-outline-light">Sign Up</a>
-            <a href="/login" class="btn-sm btn btn-outline-light">Log In</a>
+          <a href="/signup" class="btn-sm btn btn-outline-light">Sign Up</a>
+          <a href="/login" class="btn-sm btn btn-outline-light">Log In</a>
           {% else %}
-            <a href="/profile" class="nav-link">{{ current_user.get_full_name() }}</a>
+          <a href="/profile" class="nav-link">{{ current_user.get_full_name() }}</a>
           {% endif %}
         </li>
       </ul>
       {% if current_user.is_authenticated %}
-        <form method="POST" action="/logout" class="form-inline my-2 my-lg-0">
-          {{ g.csrf_form.hidden_tag() }}
-          <button class="btn-sm btn btn-outline-light">Log Out</button>
-        </form>
+      <form method="POST" action="/logout" class="form-inline my-2 my-lg-0">
+        {{ g.csrf_form.hidden_tag() }}
+        <button class="btn-sm btn btn-outline-light">Log Out</button>
+      </form>
       {% endif %}
     </div>
   </nav>

@@ -5,6 +5,7 @@ from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 
+from mapping import save_map
 
 bcrypt = Bcrypt()
 db = SQLAlchemy()
@@ -97,6 +98,11 @@ class Cafe(db.Model):
         city = self.city
         return f'{city.name}, {city.state}'
 
+    def save_map(self):
+        """ Save map for specified cafe """
+
+        save_map(self.id, self.address, self.city.name, self.city.state)
+
 
 class User(db.Model, UserMixin):
     """ User information and credentials """
@@ -152,7 +158,8 @@ class User(db.Model, UserMixin):
         nullable=False,
     )
 
-    liked_cafes= db.relationship('Cafe', secondary="likes", backref="liking_users")
+    liked_cafes = db.relationship(
+        'Cafe', secondary="likes", backref="liking_users")
 
     def __repr__(self):
         return f'<User id={self.id} username="{self.username}">'

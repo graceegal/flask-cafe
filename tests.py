@@ -1,10 +1,10 @@
 """Tests for Flask Cafe."""
 
 
-from models import db, Cafe, City, connect_db, User #, Like
+from models import db, Cafe, City, connect_db, User  # , Like
 from app import app, CURR_USER_KEY
 from flask import session
-from flask_login import current_user, FlaskLoginClient
+from flask_login import current_user, FlaskLoginClient, login_user
 from unittest import TestCase
 from sqlalchemy.exc import IntegrityError
 import re
@@ -259,16 +259,39 @@ class CafeAdminViewsTestCase(TestCase):
         City.query.delete()
         db.session.commit()
 
-    def test_add(self):
-        with app.test_client() as client:
-            resp = client.get(f"/cafes/add")
-            self.assertIn(b'Add Cafe', resp.data)
+    def test_add_as_admin(self):
+        with app.app_context():
 
-            resp = client.post(
-                f"/cafes/add",
-                data=CAFE_DATA_EDIT,
-                follow_redirects=True)
-            self.assertIn(b'added', resp.data)
+            with app.test_request_context():
+                User.query.delete()
+                user = User.register(**ADMIN_USER_DATA)
+                db.session.add(user)
+                db.session.commit()
+
+                with app.test_client() as c:
+                    login_user(user)
+                    resp = c.get(f"/cafes/add")
+                    self.assertIn(b'Add Cafe', resp.data)
+
+                    resp = c.post(
+                        f"/cafes/add",
+                        data=CAFE_DATA_EDIT,
+                        follow_redirects=True)
+                    self.assertIn(b'added', resp.data)
+
+    def test_add_not_admin(self):
+        with app.app_context():
+
+            with app.test_request_context():
+                User.query.delete()
+                user = User.register(**TEST_USER_DATA)
+                db.session.add(user)
+                db.session.commit()
+
+                with app.test_client() as c:
+                    login_user(user)
+                    resp = c.get(f"/cafes/add", follow_redirects=True)
+                    self.assertIn(b'Unauthorized', resp.data)
 
     def test_dynamic_cities_vocab(self):
         id = self.cafe_id
@@ -279,32 +302,74 @@ class CafeAdminViewsTestCase(TestCase):
             r'<select [^>]*name="city_code"[^>]*><option [^>]*value="sf">' +
             r'San Francisco</option></select>')
 
-        with app.test_client() as client:
-            resp = client.get(f"/cafes/add")
-            self.assertRegex(resp.data.decode('utf8'), choices_pattern)
+        with app.app_context():
 
-            resp = client.get(f"/cafes/{id}/edit")
-            self.assertRegex(resp.data.decode('utf8'), choices_pattern)
+            with app.test_request_context():
+                User.query.delete()
+                user = User.register(**ADMIN_USER_DATA)
+                db.session.add(user)
+                db.session.commit()
 
-    def test_edit(self):
+                with app.test_client() as client:
+                    login_user(user)
+
+                    resp = client.get(f"/cafes/add")
+                    self.assertRegex(resp.data.decode('utf8'), choices_pattern)
+
+                    resp = client.get(f"/cafes/{id}/edit")
+                    self.assertRegex(resp.data.decode('utf8'), choices_pattern)
+
+    def test_edit_as_admin(self):
+        with app.app_context():
+
+            with app.test_request_context():
+                User.query.delete()
+                user = User.register(**ADMIN_USER_DATA)
+                db.session.add(user)
+                db.session.commit()
+
+                with app.test_client() as client:
+                    login_user(user)
+                    id = self.cafe_id
+
+                    resp = client.get(
+                        f"/cafes/{id}/edit", follow_redirects=True)
+                    self.assertIn(b'Edit Test Cafe', resp.data)
+
+                    resp = client.post(
+                        f"/cafes/{id}/edit",
+                        data=CAFE_DATA_EDIT,
+                        follow_redirects=True)
+                    self.assertIn(b'edited', resp.data)
+
+    def test_edit_not_admin(self):
         id = self.cafe_id
 
         with app.test_client() as client:
-            resp = client.get(f"/cafes/{id}/edit", follow_redirects=True)
-            self.assertIn(b'Edit Test Cafe', resp.data)
+            User.query.delete()
+            user = User.register(**TEST_USER_DATA)
+            db.session.add(user)
+            db.session.commit()
 
-            resp = client.post(
-                f"/cafes/{id}/edit",
-                data=CAFE_DATA_EDIT,
-                follow_redirects=True)
-            self.assertIn(b'edited', resp.data)
+            resp = client.get(f"/cafes/{id}/edit", follow_redirects=True)
+            self.assertIn(b'Unauthorized', resp.data)
 
     def test_edit_form_shows_curr_data(self):
         id = self.cafe_id
 
-        with app.test_client() as client:
-            resp = client.get(f"/cafes/{id}/edit", follow_redirects=True)
-            self.assertIn(b'Test description', resp.data)
+        with app.app_context():
+
+            with app.test_request_context():
+                User.query.delete()
+                user = User.register(**ADMIN_USER_DATA)
+                db.session.add(user)
+                db.session.commit()
+
+                with app.test_client() as client:
+                    login_user(user)
+                    resp = client.get(
+                        f"/cafes/{id}/edit", follow_redirects=True)
+                    self.assertIn(b'Test description', resp.data)
 
 
 #######################################
@@ -406,7 +471,6 @@ class AuthViewsTestCase(TestCase):
             db.session.commit()
             self.assertFalse(current_user.is_authenticated)
 
-
     def test_login(self):
         with app.test_client() as client:
             resp = client.get("/login")
@@ -471,15 +535,19 @@ class NavBarTestCase(TestCase):
             self.assertIn("Log In", str(resp.data))
 
     def test_logged_in_navbar(self):
-        with app.test_client() as c:
-            resp = c.post(
-                "/login",
-                data={"username": "test", "password": "secret"},
-                follow_redirects=True)
+        with app.app_context():
 
-            self.assertEqual(resp.status_code, 200)
-            self.assertIn(f"{current_user.get_full_name()}", str(resp.data))
-            self.assertIn("Log Out", str(resp.data))
+            with app.test_request_context():
+                user = User.query.get(self.user_id)
+
+                with app.test_client() as c:
+                    login_user(user)
+                    resp = c.get("/")
+
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertIn(
+                        f"{current_user.get_full_name()}", str(resp.data))
+                    self.assertIn("Log Out", str(resp.data))
 
 
 class ProfileViewsTestCase(TestCase):
@@ -505,7 +573,6 @@ class ProfileViewsTestCase(TestCase):
 
     def test_anon_profile(self):
         with app.test_client() as c:
-            breakpoint()
             resp = c.get(
                 "/profile",
                 follow_redirects=True,)
@@ -513,27 +580,26 @@ class ProfileViewsTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIn("You are not logged in", str(resp.data))
 
-
     def test_logged_in_profile(self):
-        with app.test_client() as c:
-            resp = c.post(
-                "/login",
-                data={"username": "test", "password": "secret"},
-                follow_redirects=True)
+        with app.app_context():
 
-            resp = c.get(
-                "/profile",
-                follow_redirects=True,)
+            with app.test_request_context():
+                user = User.query.get(self.user_id)
 
-            self.assertEqual(resp.status_code, 200)
-            self.assertIn(f"{current_user.get_full_name()}", str(resp.data))
-            self.assertIn(f"{current_user.username}", str(resp.data))
-            self.assertIn("Edit Your Profile", str(resp.data))
+                with app.test_client() as c:
+                    login_user(user)
+                    resp = c.get(
+                        "/profile",
+                        follow_redirects=True,)
 
+                self.assertEqual(resp.status_code, 200)
+                self.assertIn(
+                    f"{current_user.get_full_name()}", str(resp.data))
+                self.assertIn(f"{current_user.username}", str(resp.data))
+                self.assertIn("Edit Your Profile", str(resp.data))
 
     def test_anon_profile_edit(self):
         with app.test_client() as c:
-            breakpoint()
             resp = c.get(
                 "/profile/edit",
                 follow_redirects=True,)

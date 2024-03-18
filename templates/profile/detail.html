@@ -25,28 +25,24 @@
 
   </div>
 
-</div>
-
-<div class="row justify-content-left">
-
   <div style="display: block;">
-  <h3>Your Liked Cafes</h3>
+    <h3>Your Liked Cafes</h3>
 
-  {% if current_user.liked_cafes %}
-  <ul id="liked_cafes">
+    {% if current_user.liked_cafes %}
+    <ul id="liked_cafes">
 
-    {% for cafe in current_user.liked_cafes %}
-    <li><a href="/cafes/{{ cafe.id }}">{{ cafe.name }}</a></li>
-    {% endfor %}
+      {% for cafe in current_user.liked_cafes %}
+      <li><a href="/cafes/{{ cafe.id }}">{{ cafe.name }}</a></li>
+      {% endfor %}
 
-  </ul>
+    </ul>
 
-  {% else %}
+    {% else %}
 
-  <p>You have no liked cafes</p>
+    <p>You have no liked cafes</p>
 
-  {% endif %}
-</div>
+    {% endif %}
+  </div>
 </div>
 
 {% endblock %}

@@ -2,7 +2,7 @@
 
 import os
 
-from flask import Flask, render_template, redirect, url_for, flash, g
+from flask import Flask, render_template, redirect, url_for, flash, g, request, jsonify
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
@@ -18,7 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 app.config['SECRET_KEY'] = os.environ.get("FLASK_SECRET_KEY", "shhhh")
 app.config['SQLALCHEMY_ECHO'] = True
 
-# app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 # toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
@@ -99,6 +99,9 @@ def signup():
 def login():
     """ Handle user login and redirect to cafe list page on success. """
 
+    if current_user.is_authenticated:
+        logout_user()
+
     form = LogInForm()
 
     if form.validate_on_submit():
@@ -134,13 +137,20 @@ def logout():
 
 
 #######################################
-# homepage
+# homepage & error handler
 
 @app.get("/")
 def homepage():
     """Show homepage."""
 
     return render_template("homepage.html")
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """404 NOT FOUND page."""
+
+    return render_template('404.html'), 404
 
 
 #######################################
@@ -222,10 +232,16 @@ def cafe_detail(cafe_id):
 
 @app.route('/cafes/add', methods=['GET', 'POST'])
 def add_cafe():
-    """ GET: Show form for adding a cafe.
+    """ If user is not logged in and an admin, redirect them to homepage, otherwise:
+
+        GET: Show form for adding a cafe.
 
         POST: Handle adding a new cafe from form submit.
         Redirect and alert user if cafe was successfully added."""
+
+    if (not current_user.is_authenticated) or (current_user.is_authenticated and not current_user.admin):
+        flash('Unauthorized. Please login with admin credentials to view page.', 'danger')
+        return redirect('/')
 
     form = AddEditCafeForm()
     form.city_code.choices = City.get_city_choices()
@@ -237,6 +253,10 @@ def add_cafe():
         cafe = Cafe(**data)
 
         db.session.add(cafe)
+
+        db.session.flush()
+        cafe.save_map()
+
         db.session.commit()
 
         flash(f'{cafe.name} added.', "success")
@@ -251,10 +271,16 @@ def add_cafe():
 
 @app.route('/cafes/<int:cafe_id>/edit', methods=['GET', 'POST'])
 def edit_cafe(cafe_id):
-    """ GET: Show form for editing a cafe
+    """ If user is not logged in and an admin, redirect them to homepage, otherwise:
+
+        GET: Show form for editing a cafe
 
         POST: Handle editing a cafe from form submit.
         Redirect and alert user if cafe was successfully edited. """
+
+    if (not current_user.is_authenticated) or (current_user.is_authenticated and not current_user.admin):
+        flash('Unauthorized. Please login with admin credentials to view page.', 'danger')
+        return redirect('/')
 
     cafe = Cafe.query.get_or_404(cafe_id)
     form = AddEditCafeForm(obj=cafe)
@@ -268,6 +294,8 @@ def edit_cafe(cafe_id):
         cafe.city_code = form.city_code.data
         cafe.image_url = form.image_url.data or DEFAULT_CAFE_IMAGE
 
+        cafe.save_map()
+
         db.session.commit()
 
         flash(f'{cafe.name} edited.', 'success')
@@ -279,3 +307,59 @@ def edit_cafe(cafe_id):
         form=form,
         cafe=cafe
     )
+
+
+#######################################
+# API for liking/unliking cafes
+
+
+@app.get('/api/likes')
+def get_like_status():
+    """ """
+
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Not logged in"})
+    else:
+        cafe_id = request.args.get('cafe_id')
+        cafe = Cafe.query.get_or_404(cafe_id)
+
+        if cafe in current_user.liked_cafes:
+            return jsonify({"likes": True})
+        else:
+            return jsonify({"likes": False})
+
+
+@app.post('/api/like')
+def like_cafe():
+    """ """
+
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Not logged in"})
+    else:
+        data = request.json
+        cafe_id = data.get('cafe_id')
+        cafe = Cafe.query.get_or_404(cafe_id)
+
+        current_user.liked_cafes.append(cafe)
+
+        db.session.commit()
+
+        return jsonify({"liked": cafe_id})
+
+
+@app.post('/api/unlike')
+def unlike_cafe():
+    """ """
+
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Not logged in"})
+    else:
+        data = request.json
+        cafe_id = data.get('cafe_id')
+        cafe = Cafe.query.get_or_404(cafe_id)
+
+        current_user.liked_cafes.remove(cafe)
+
+        db.session.commit()
+
+        return jsonify({"unliked": cafe_id})
